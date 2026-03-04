@@ -14,3 +14,16 @@ By combining deep learning 🤖, image recognition 📸, and sustainability anal
 * Provide a sustainability analytics dashboard 📊🌱
 
 The system leverages Transfer Learning (MobileNetV2 / EfficientNet) 🧠 for image classification and delivers a gamified eco-impact experience 🏆🌿, encouraging users to build sustainable habits while tracking their positive environmental contribution.
+
+
+how to use this 
+
+1. create the envorment venv/script/activite
+
+2. use the python app.py 
+
+3. check or copy the location 
+
+4. open the location on peersonal browser or system browser
+
+5. use the app as u want
