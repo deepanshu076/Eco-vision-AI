@@ -1,0 +1,387 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        transition: transform 0.3s;
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+    .stat-icon {
+        font-size: 2.5rem;
+        opacity: 0.8;
+    }
+    .progress {
+        height: 10px;
+        border-radius: 5px;
+    }
+    .impact-badge {
+        padding: 8px 15px;
+        border-radius: 20px;
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Welcome Section -->
+    <div class="row mb-4">
+        <div class="col">
+            <h2>
+                <i class="fas fa-chart-line text-success me-2"></i>
+                Sustainability Dashboard
+            </h2>
+            <p class="text-muted">Track your environmental impact over time</p>
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-success" onclick="refreshData()">
+                <i class="fas fa-sync-alt me-1"></i>Refresh
+            </button>
+        </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="row g-4 mb-4" id="metrics-container">
+        <!-- Will be populated by JavaScript -->
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-8">
+            <div class="card stat-card">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line text-success me-2"></i>
+                        Weekly Activity
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card stat-card">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-pie text-success me-2"></i>
+                        Waste Distribution
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="pieChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Impact Equivalents -->
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <div class="card stat-card">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-globe-americas text-success me-2"></i>
+                        Your Environmental Impact
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center" id="equivalents-container">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaderboard and Recent Activity -->
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card stat-card">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-trophy text-success me-2"></i>
+                        Global Leaderboard
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="leaderboard-container">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card stat-card">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history text-success me-2"></i>
+                        Recent Activity
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="recent-activity">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script>
+    let trendChart, pieChart;
+    
+    // Load dashboard data
+    function loadDashboardData() {
+        fetch('/dashboard/api/dashboard/stats')
+            .then(response => response.json())
+            .then(data => {
+                updateMetrics(data);
+                updateCharts(data);
+                updateEquivalents(data.equivalents);
+            });
+        
+        // Load leaderboard
+        fetch('/dashboard/api/dashboard/leaderboard')
+            .then(response => response.json())
+            .then(data => {
+                updateLeaderboard(data);
+            });
+    }
+    
+    function updateMetrics(data) {
+        const container = document.getElementById('metrics-container');
+        container.innerHTML = `
+            <div class="col-md-3">
+                <div class="card stat-card bg-success text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="card-subtitle mb-2 text-white-50">Total Uploads</h6>
+                                <h2 class="mb-0">${data.total_uploads}</h2>
+                            </div>
+                            <div class="stat-icon">
+                                <i class="fas fa-camera"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card bg-info text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="card-subtitle mb-2 text-white-50">CO₂ Saved</h6>
+                                <h2 class="mb-0">${data.total_carbon_saved} kg</h2>
+                            </div>
+                            <div class="stat-icon">
+                                <i class="fas fa-cloud"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card bg-warning text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="card-subtitle mb-2 text-white-50">Sustainability Score</h6>
+                                <h2 class="mb-0">${data.sustainability_score}</h2>
+                            </div>
+                            <div class="stat-icon">
+                                <i class="fas fa-star"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card bg-primary text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="card-subtitle mb-2 text-white-50">Recent Activity</h6>
+                                <h2 class="mb-0">${data.recent_uploads}</h2>
+                            </div>
+                            <div class="stat-icon">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    function updateCharts(data) {
+        // Trend Chart
+        const ctxTrend = document.getElementById('trendChart').getContext('2d');
+        if (trendChart) trendChart.destroy();
+        
+        trendChart = new Chart(ctxTrend, {
+            type: 'line',
+            data: {
+                labels: data.weekly_trends.map(t => t.week),
+                datasets: [{
+                    label: 'Uploads',
+                    data: data.weekly_trends.map(t => t.count),
+                    borderColor: '#28a745',
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    tension: 0.4,
+                    yAxisID: 'y'
+                }, {
+                    label: 'CO₂ Saved (kg)',
+                    data: data.weekly_trends.map(t => t.carbon),
+                    borderColor: '#17a2b8',
+                    backgroundColor: 'rgba(23, 162, 184, 0.1)',
+                    tension: 0.4,
+                    yAxisID: 'y1'
+                }]
+            },
+            options: {
+                responsive: true,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    }
+                },
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: {
+                            display: true,
+                            text: 'Number of Uploads'
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: {
+                            display: true,
+                            text: 'CO₂ Saved (kg)'
+                        },
+                        grid: {
+                            drawOnChartArea: false,
+                        },
+                    }
+                }
+            }
+        });
+        
+        // Pie Chart
+        const ctxPie = document.getElementById('pieChart').getContext('2d');
+        if (pieChart) pieChart.destroy();
+        
+        pieChart = new Chart(ctxPie, {
+            type: 'pie',
+            data: {
+                labels: Object.keys(data.category_distribution),
+                datasets: [{
+                    data: Object.values(data.category_distribution),
+                    backgroundColor: [
+                        '#28a745', // biodegradable
+                        '#17a2b8', // recyclable
+                        '#dc3545'  // hazardous
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+    
+    function updateEquivalents(equivalents) {
+        const container = document.getElementById('equivalents-container');
+        container.innerHTML = `
+            <div class="col-md-4 mb-3">
+                <div class="impact-badge bg-success text-white d-inline-block mb-2">
+                    <i class="fas fa-tree me-1"></i>Trees Saved
+                </div>
+                <h3>${equivalents.trees_saved}</h3>
+                <small class="text-muted">Equivalent to ${equivalents.trees_saved} trees absorbing CO₂ for a year</small>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="impact-badge bg-info text-white d-inline-block mb-2">
+                    <i class="fas fa-car me-1"></i>Car Miles Avoided
+                </div>
+                <h3>${equivalents.car_miles_avoided} miles</h3>
+                <small class="text-muted">Equivalent to not driving ${equivalents.car_miles_avoided} miles</small>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="impact-badge bg-warning text-white d-inline-block mb-2">
+                    <i class="fas fa-mobile-alt me-1"></i>Phone Charges
+                </div>
+                <h3>${equivalents.phone_charges}</h3>
+                <small class="text-muted">Equivalent to charging your phone ${equivalents.phone_charges} times</small>
+            </div>
+        `;
+    }
+    
+    function updateLeaderboard(data) {
+        const container = document.getElementById('leaderboard-container');
+        let html = '<div class="list-group">';
+        
+        data.leaderboard.forEach((user, index) => {
+            const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
+            html += `
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>${medal} ${user.username}</strong>
+                    </div>
+                    <div>
+                        <span class="badge bg-success me-2">${user.uploads} uploads</span>
+                        <span class="badge bg-info">${user.carbon} kg CO₂</span>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += `
+            <div class="list-group-item bg-light">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>Your Rank: #${data.user_rank}</strong>
+                    </div>
+                    <span class="badge bg-primary">${data.user_carbon} kg CO₂</span>
+                </div>
+            </div>
+        `;
+        
+        html += '</div>';
+        container.innerHTML = html;
+    }
+    
+    function refreshData() {
+        loadDashboardData();
+    }
+    
+    // Load data on page load
+    document.addEventListener('DOMContentLoaded', loadDashboardData);
+</script>
+{% endblock %}
